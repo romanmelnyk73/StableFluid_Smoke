@@ -304,16 +304,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   resolution: 512
+  iterations: 20
   viscosity: 0.000001
   force: 300
+  velocityDissipation: 1
   density: 1
-  vorticity: 25
-  temperature: 11
+  densityDissipation: 1
+  vorticity: 10
+  temperature: 110
+  temperatureDissipation: 1
   buoyancy: 0.0125
-  gravity: 0.119
+  gravity: 0.1
   exponent: 100
   compute: {fileID: 7200000, guid: 54c48322b5935174b80c5fec358e7f6e, type: 3}
   shader: {fileID: 4800000, guid: e5a28cb506679df4a828a7e2f85e582a, type: 3}
-  initial: {fileID: 0}
   forceOrigin: {x: 0.1, y: 0.1}
-  forceVector: {x: 5, y: 3}
+  forceVector: {x: 500, y: 10}

@@ -20,8 +20,10 @@ float Epsilon;
 float Buoyancy;
 float Weight;
 float densityAmount;
+float densityDissipation;
 float temperatureAmount;
-
+float temperatureDissipation;
+float velocityDissipation;
 
 // External force
 float2 ForceOrigin;
@@ -73,13 +75,16 @@ void Advect(uint2 tid : SV_DispatchThreadID)
     uint2 dim;
     W_out.GetDimensions(dim.x, dim.y);
 
-    float2 uv = (tid + 0.5) / dim;
+    /*float2 uv = (tid + 0.5) / dim;
     float2 duv = U_in[tid] * DeltaTime;
+    float2  pos = (float2) (uv - duv) * dim;*/
 
-    float2  pos = (float2) (uv - duv) * dim;
+    float2 uv = (tid + 0.5);
+    float2 duv = U_in[tid] * DeltaTime;
+    float2  pos = (float2) (uv - duv);
 
-    float2 velocity = f2SampleCubic(U_in, pos, dim) * 0.996;
-    //float2 velocity = SampleBilinear(U_in, pos, dim);
+    float2 velocity = f2SampleCubic(U_in, pos, dim)* velocityDissipation;
+    //float2 velocity = SampleBilinear(U_in, pos, dim)*velocityDissipation;
 
     W_out[tid] = velocity;
 
@@ -125,7 +130,7 @@ void VorticityConfinement(uint2 tid : SV_DispatchThreadID)
     float vT = VC_in[min(dim - 1, tid + int2(0, 1))];
     float vC = VC_in[tid];
 
-    float2 eta = 0.5 * float2(abs(vT) - abs(vB), abs(vR) - abs(vL)) * dim;
+    float2 eta = 0.5 * float2(abs(vT) - abs(vB), abs(vR) - abs(vL));
     eta = normalize(eta + float2(0.001, 0.001));
 
     float2 force = DeltaTime * Epsilon *vC* float2(eta.x, - eta.y);
@@ -177,11 +182,12 @@ void ProjectSetup(uint2 tid : SV_DispatchThreadID)
     int2 tidB = max(0, tid - int2(0, 1));
     int2 tidT = min(dim - 1, tid + int2(0, 1));
 
-    float divergence = 0.5*(W_in[tidR].x - W_in[tidL].x +  W_in[tidT].y - W_in[tidB].y) * dim.y;
-
+    float divergence = 0.5 * (W_in[tidR].x - W_in[tidL].x + W_in[tidT].y - W_in[tidB].y);
+    //*dim.y;
+    
    DivW_out[tid] = divergence;
 
-   f1bnd(DivW_out, tid, -divergence, dim);
+   f1bnd(DivW_out, tid, divergence, dim);
   
     P_out[tid] = 0;
 }
@@ -200,7 +206,8 @@ void Project(uint2 tid : SV_DispatchThreadID)
     float P3 = P_in[max(tid - int2(0, 1), 1)];
     float P4 = P_in[min(tid + int2(0, 1), dim - 2)];
 
-    float2 u = W_in[tid] - 0.5*float2(P2 - P1, P4 - P3) * dim.y;
+    float2 u = W_in[tid] - 0.5 * float2(P2 - P1, P4 - P3);
+    //*dim.y;
 
     U_out[tid] = u;
     f2bnd(U_out, tid, u, dim);
@@ -250,12 +257,16 @@ void AdvectDensity(uint2 tid : SV_DispatchThreadID)
 
     if (any(tid == 0) || any(tid == dim - 1)) return;
 
-    float2 uv = (tid + 0.5) / dim;
+    /*float2 uv = (tid + 0.5) / dim;
     float2 duv = U_in[tid] * DeltaTime;
-    float2  pos = (float2) (uv - duv) * dim;
+    float2  pos = (float2) (uv - duv) * dim;*/
 
-    float dens = f1SampleCubic(D_in, pos, dim) * 0.999;
-    //D_out[tid] = SampleBilinear(D_in, pos, dim);
+    float2 uv = (tid + 0.5);
+    float2 duv = U_in[tid] * DeltaTime;
+    float2  pos = (float2) (uv - duv);
+
+    float dens = f1SampleCubic(D_in, pos, dim) * densityDissipation;
+    //float dens = SampleBilinear(D_in, pos, dim) * densityDissipation;;
 
     D_out[tid] = dens;
     f1bnd(D_out, tid, dens, dim);
@@ -268,7 +279,7 @@ void DensitySource(uint2 tid : SV_DispatchThreadID)
     uint2 dim;
     D_out.GetDimensions(dim.x, dim.y);
 
-    float2 pos = (tid + 0.5) / dim.y;
+    float2 pos = (tid + 0.5)/ dim.y;
     float amp = exp(-ForceExponent * distance(ForceOrigin, pos));
     
     D_out[tid] = D_in[tid] + amp*densityAmount;
@@ -283,12 +294,16 @@ void AdvectTemperature(uint2 tid : SV_DispatchThreadID)
 
     if (any(tid == 0) || any(tid == dim - 1)) return;
 
-    float2 uv = (tid + 0.5) / dim;
+    /*float2 uv = (tid + 0.5) / dim;
     float2 duv = U_in[tid] * DeltaTime;
-    float2  pos = (float2) (uv - duv) * dim;
+    float2  pos = (float2) (uv - duv) * dim;*/
 
-    float temp = f1SampleCubic(T_in, pos, dim) * 0.999;
-    //T_out[tid] = SampleBilinear(T_in, pos, dim);
+    float2 uv = (tid + 0.5);
+    float2 duv = U_in[tid] * DeltaTime;
+    float2  pos = (float2) (uv - duv);
+
+    float temp = f1SampleCubic(T_in, pos, dim) * temperatureDissipation;
+    //float temp = SampleBilinear(T_in, pos, dim) * temperatureDissipation;
    
     T_out[tid] = temp;
 

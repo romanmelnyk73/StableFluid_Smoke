@@ -5,17 +5,21 @@ using UnityEngine;
 public class Smoke : MonoBehaviour
 {
     public int resolution = 512;
+    public int iterations = 20;
     public float viscosity = 1e-6f;
     public float force = 300;
+    public float velocityDissipation = 1.0f;
     public float density = 1.0f;
+    public float densityDissipation = 1.0f;
     public float vorticity = 10;
     public float temperature = 10;
+    public float temperatureDissipation = 1.0f;
     public float buoyancy = 0.01f;
     public float gravity = 0.01f;
     public float exponent = 200;
     public ComputeShader compute;
     public Shader shader;
-    public Texture2D initial;
+    //public Texture2D initial;
     public Vector2 forceOrigin;
     public Vector2 forceVector;
     
@@ -171,8 +175,11 @@ public class Smoke : MonoBehaviour
         compute.SetTexture(kernelAdvectTemperature, "T_out", texturT2);
 
         compute.SetFloat("ForceExponent", exponent);
+        compute.SetFloat("velocityDissipation", velocityDissipation);
         compute.SetFloat("densityAmount", density);
+        compute.SetFloat("densityDissipation", densityDissipation);
         compute.SetFloat("temperatureAmount", temperature);
+        compute.SetFloat("temperatureDissipation", temperatureDissipation);
         compute.SetFloat("Epsilon", vorticity);
         compute.SetFloat("Buoyancy", buoyancy);
         compute.SetFloat("Weight", gravity);
@@ -194,7 +201,8 @@ public class Smoke : MonoBehaviour
     {
         var dt = Time.deltaTime;
         //float dt = 0.1f;
-        var dx = 1.0f / resolutionY;
+        var dx = 1.0f;
+        // / resolutionY;
 
         // Common variables
         compute.SetFloat("DeltaTime", dt);
@@ -215,7 +223,7 @@ public class Smoke : MonoBehaviour
         
 
         // Jacobi iteration
-        for (var i = 0; i < 20; i++)
+        for (var i = 0; i < iterations; i++)
         {
             compute.SetTexture(kernelDiffuse2, "X2_in", texturV2);
             compute.SetTexture(kernelDiffuse2, "X2_out", texturV3);
@@ -246,11 +254,12 @@ public class Smoke : MonoBehaviour
         compute.SetFloat("Alpha", -dx * dx);
         compute.SetFloat("Beta", 4);
 
-        for (var i = 0; i < 20; i++)
+        for (var i = 0; i < iterations; i++)
         {
             compute.SetTexture(kernelDiffuse1, "X1_in", texturP1);
             compute.SetTexture(kernelDiffuse1, "X1_out", texturP2);
             compute.Dispatch(kernelDiffuse1, threadCountX, threadCountY, 1);
+            //Graphics.CopyTexture(texturP2, texturP1);
 
             compute.SetTexture(kernelDiffuse1, "X1_in", texturP2);
             compute.SetTexture(kernelDiffuse1, "X1_out", texturP1);
